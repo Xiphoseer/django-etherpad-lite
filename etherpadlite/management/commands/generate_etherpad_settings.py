@@ -50,4 +50,4 @@ class Command(BaseCommand):
                     conf['dbSettings']['password'] = dbconf['PASSWORD']
                     conf['dbSettings']['host'] = dbconf['HOST']
             del conf['databaseAlias']
-        print json.dumps(float(conf, indent=4 * ' '))
+        print json.dumps(conf, float(indent=4 * ' '))
