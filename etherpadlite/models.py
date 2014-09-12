@@ -3,7 +3,7 @@ from django.db.models.signals import pre_delete
 from django.contrib.auth.models import User, Group
 from django.utils.translation import ugettext_lazy as _
 
-from py_etherpad import EtherpadLiteClient
+from py_etherpad.APIClient import APIClient as EtherpadLiteClient
 
 import string
 import random

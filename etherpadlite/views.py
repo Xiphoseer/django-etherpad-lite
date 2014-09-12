@@ -5,6 +5,8 @@ import datetime
 import time
 import urllib
 from urlparse import urlparse
+import logging
+logger = logging.getLogger(__name__)
 
 # Framework imports
 from django.shortcuts import render_to_response, get_object_or_404
@@ -16,7 +18,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext_lazy as _
 
 # additional imports
-from py_etherpad import EtherpadLiteClient
+from py_etherpad.APIClient import APIClient as EtherpadLiteClient
 
 # local imports
 from etherpadlite.models import *
@@ -223,7 +225,11 @@ def pad(request, pk):
 
     # Delete the existing session first
     if ('padSessionID' in request.COOKIES):
-        epclient.deleteSession(request.COOKIES['sessionID'])
+        #epclient.deleteSession(request.COOKIES['sessionID'])
+        try:
+            epclient.deleteSession(request.COOKIES['sessionID'])
+        except Exception as e:
+            logger.error(e.message)
         response.delete_cookie('sessionID', server.hostname)
         response.delete_cookie('padSessionID')
 
