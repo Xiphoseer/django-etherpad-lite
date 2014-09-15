@@ -16,6 +16,7 @@ from django.template import RequestContext
 from django.core.context_processors import csrf
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext_lazy as _
+from django.conf import settings
 
 # additional imports
 from py_etherpad.APIClient import APIClient as EtherpadLiteClient
@@ -204,7 +205,7 @@ def pad(request, pk):
                 'server': server,
                 'uname': author.user.__unicode__(),
                 'error': _('etherpad-lite session request returned:') +
-                ' "' + e.reason + '"'
+                ' "' + e.message + '"'
             },
             context_instance=RequestContext(request)
         )
@@ -238,12 +239,14 @@ def pad(request, pk):
         'sessionID',
         value=result['sessionID'],
         expires=expires,
-        domain=server.hostname,
+        #domain=server.hostname,
+        domain=settings.SESSION_COOKIE_DOMAIN,
         httponly=False
     )
     response.set_cookie(
         'padSessionID',
         value=result['sessionID'],
+        domain=settings.SESSION_COOKIE_DOMAIN,
         expires=expires,
         httponly=False
     )
