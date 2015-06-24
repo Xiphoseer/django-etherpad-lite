@@ -23,15 +23,20 @@ Set a cookie domain in your settings.py file that will be used by your django in
     # Set the session cookie domain
     SESSION_COOKIE_DOMAIN = '.example.com'
 
-Finally you will need to add lines to your `urls.py` file. You can either add this line:
+The current version of urls assumes this is part of another project, so just add to the global urls.py:
+    url(r'^etherpad', include('etherpadlite.urls')),
 
-     url(r'^', include('etherpadlite.urls')),
-
-Or, if you are already serving your home page via a different app, these lines:
+If this is a standalone project, amend the urls to include authentication something like this:
+     url(r'^$', 'django.contrib.auth.views.login',
+        {'template_name': 'etherpad-lite/login.html'}),
+     url(r'^etherpad$', 'django.contrib.auth.views.login',
+        {'template_name': 'etherpad-lite/login.html'}),
+     url(r'^logout$', 'django.contrib.auth.views.logout',
+        {'template_name': 'etherpad-lite/logout.html'}),
 
      url(r'^etherpad', include('etherpadlite.urls')),
      url(r'^accounts/profile/$', include('etherpadlite.urls')),
-     url(r'^logout$', include('etherpadlite.urls')),
+
 
 Django-etherpad-lite works by creating and iframe in a template and calling the etherpadlite API to create and delete pads and groups.  To do this, a few model entries are required.
 
