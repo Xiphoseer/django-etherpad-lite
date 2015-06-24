@@ -33,11 +33,13 @@ Or, if you are already serving your home page via a different app, these lines:
      url(r'^accounts/profile/$', include('etherpadlite.urls')),
      url(r'^logout$', include('etherpadlite.urls')),
 
-Once you have done this, you will need to, at minimum, create a group and add a first etherpad-lite server via the django admin interface in order to take full advantage of this modules functionality:
+Django-etherpad-lite works by creating and iframe in a template and calling the etherpadlite API to create and delete pads and groups.  To do this, a few model entries are required.
 
-1. Add a group: `admin/auth/group/add/`
-2. Add an etherpad server: `admin/etherpadlite/padserver/add/`
-3. Add an etherpad group corresponding to the auth group: `admin/etherpadlite/padgroup/add/`
+1. Add a group: `admin/auth/group/add/`, called, for example, etherpad.
+
+2. Add an etherpad server: `admin/etherpadlite/padserver/add/`, note that the url for the server must have a trailing /, eg. 'http://127.0.0.1:9001/'
+
+3. Add an etherpad group corresponding to the auth group: `admin/etherpadlite/padgroup/add/`, use the group created in 1, the server created in 2, and the api key that can be found in APIKEY.txt in the directory for the etherpadlite installation.
 
 At this point, any users you add to the django project who are members of an etherpad enabled group will be able to take full advantage of the modules features.
 

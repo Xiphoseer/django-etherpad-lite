@@ -1,10 +1,9 @@
 from django.db import models
 from django.db.models.signals import pre_delete
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import  Group
 from django.utils.translation import ugettext_lazy as _
 from django.conf import settings
-
-from py_etherpad.APIClient import APIClient as EtherpadLiteClient
+from py_etherpad import EtherpadLiteClient
 
 import string
 import random
@@ -15,7 +14,8 @@ class PadServer(models.Model):
     title = models.CharField(max_length=256)
     url = models.URLField(
         max_length=256,
-        verbose_name=_('URL')
+        verbose_name=_('URL'),
+        help_text="must have trailing /"
     )
     apikey = models.CharField(max_length=256, verbose_name=_('API key'))
     notes = models.TextField(_('description'), blank=True)
@@ -25,6 +25,8 @@ class PadServer(models.Model):
 
     def __unicode__(self):
         return self.url
+
+    #TODO: validate url has trailing / or amend code elsewhere to add it if missing
 
     @property
     def apiurl(self):

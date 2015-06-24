@@ -5,8 +5,6 @@ import datetime
 import time
 import urllib
 from urlparse import urlparse
-import logging
-logger = logging.getLogger(__name__)
 
 # Framework imports
 from django.shortcuts import render_to_response, get_object_or_404
@@ -16,10 +14,10 @@ from django.template import RequestContext
 from django.core.context_processors import csrf
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import ugettext_lazy as _
-from django.conf import settings
+from django.core.urlresolvers import reverse_lazy
 
 # additional imports
-from py_etherpad.APIClient import APIClient as EtherpadLiteClient
+from py_etherpad import EtherpadLiteClient
 
 # local imports
 from etherpadlite.models import *
@@ -27,7 +25,7 @@ from etherpadlite import forms
 from etherpadlite import config
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def padCreate(request, pk):
     """Create a named pad for the given group
     """
@@ -42,7 +40,7 @@ def padCreate(request, pk):
                 group=group
             )
             pad.save()
-            return HttpResponseRedirect('/accounts/profile/')
+            return HttpResponseRedirect(reverse_lazy("etherpad-profile"))
     else:  # No form to process so create a fresh one
         form = forms.PadCreate({'group': group.groupID})
 
@@ -59,7 +57,7 @@ def padCreate(request, pk):
     )
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def padDelete(request, pk):
     """Delete a given pad
     """
@@ -69,7 +67,7 @@ def padDelete(request, pk):
     if request.method == 'POST':
         if 'confirm' in request.POST:
             pad.delete()
-        return HttpResponseRedirect('/accounts/profile/')
+        return HttpResponseRedirect(reverse_lazy('etherpad-profile'))
 
     con = {
         'action': '/etherpad/delete/' + pk + '/',
@@ -84,7 +82,7 @@ def padDelete(request, pk):
     )
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def groupCreate(request):
     """ Create a new Group
     """
@@ -99,7 +97,7 @@ def groupCreate(request):
             pad_group = PadGroup(group=group, server=server)
             pad_group.save()
             request.user.groups.add(group)
-            return HttpResponseRedirect('/accounts/profile/')
+            return HttpResponseRedirect(reverse_lazy("etherpad-profile"))
         else:
             message = _("This Groupname is allready in use or invalid.")
     else:  # No form to process so create a fresh one
@@ -117,14 +115,14 @@ def groupCreate(request):
     )
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def groupDelete(request, pk):
     """
     """
     pass
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def profile(request):
     """Display a user profile containing etherpad groups and associated pads
     """
@@ -158,7 +156,7 @@ def profile(request):
     )
 
 
-@login_required(login_url='/etherpad')
+@login_required()
 def pad(request, pk):
     """Create and session and display an embedded pad
     """
@@ -205,7 +203,7 @@ def pad(request, pk):
                 'server': server,
                 'uname': author.user.__unicode__(),
                 'error': _('etherpad-lite session request returned:') +
-                ' "' + e.message + '"'
+                ' "' + e.reason + '"'
             },
             context_instance=RequestContext(request)
         )
@@ -226,11 +224,7 @@ def pad(request, pk):
 
     # Delete the existing session first
     if ('padSessionID' in request.COOKIES):
-        #epclient.deleteSession(request.COOKIES['sessionID'])
-        try:
-            epclient.deleteSession(request.COOKIES['sessionID'])
-        except Exception as e:
-            logger.error(e.message)
+        epclient.deleteSession(request.COOKIES['sessionID'])
         response.delete_cookie('sessionID', server.hostname)
         response.delete_cookie('padSessionID')
 
@@ -239,14 +233,12 @@ def pad(request, pk):
         'sessionID',
         value=result['sessionID'],
         expires=expires,
-        #domain=server.hostname,
-        domain=settings.SESSION_COOKIE_DOMAIN,
+        domain=server.hostname,
         httponly=False
     )
     response.set_cookie(
         'padSessionID',
         value=result['sessionID'],
-        domain=settings.SESSION_COOKIE_DOMAIN,
         expires=expires,
         httponly=False
     )
