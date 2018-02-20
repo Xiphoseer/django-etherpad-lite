@@ -1,9 +1,8 @@
 {% extends "etherpad-lite/base.html" %}
-{% load url from future %}
 
 {% block title %}{{pad.name}}{% endblock %}
 
-{% block wrapper %}
+{% block pad_wrapper %}
   {% if error %}
   <div id="main">
     <div id="errors">
@@ -12,7 +11,8 @@
     </div>
   </div>
   {% else %}
-  <iframe src="{{link}}?userName={{uname}}" style="height: 95%; width: 100%; min-height: 500px; display: block"></iframe>
+  <iframe src="{{link}}?userName={{uname}}" style="height: 95%; width: 100%; min-height: 500px; display: block">
+  </iframe>
 
   <script type="text/javascript">
   /**

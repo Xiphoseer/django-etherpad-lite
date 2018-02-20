@@ -3,16 +3,18 @@
 # Python imports
 import datetime
 import time
-import urllib
-from urlparse import urlparse
+import urllib.request, urllib.parse, urllib.error
+from urllib.parse import urlparse
 
 # Framework imports
-from django.shortcuts import render_to_response, get_object_or_404
+from django.shortcuts import render_to_response, render, get_object_or_404
 
 from django.http import HttpResponseRedirect
 from django.template import RequestContext
-from django.core.context_processors import csrf
+#from django.core.context_processors import csrf
+from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout, login, authenticate
 from django.utils.translation import ugettext_lazy as _
 from django.core.urlresolvers import reverse_lazy
 
@@ -25,7 +27,10 @@ from etherpadlite import forms
 from etherpadlite import config
 
 
-@login_required()
+LOGIN_URL = reverse_lazy('etherpadlite:login')
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
 def padCreate(request, pk):
     """Create a named pad for the given group
     """
@@ -40,24 +45,21 @@ def padCreate(request, pk):
                 group=group
             )
             pad.save()
-            return HttpResponseRedirect(reverse_lazy("etherpad-profile"))
+            return HttpResponseRedirect(reverse_lazy("etherpadlite:profile"))
     else:  # No form to process so create a fresh one
         form = forms.PadCreate({'group': group.groupID})
 
     con = {
         'form': form,
         'pk': pk,
-        'title': _('Create pad in %(grp)s') % {'grp': group.__unicode__()}
+        'title': _('Create pad in %(grp)s') % {'grp': group.__str__()}
     }
-    con.update(csrf(request))
-    return render_to_response(
-        'etherpad-lite/padCreate.html',
-        con,
-        context_instance=RequestContext(request)
-    )
+    #con.update(csrf(request))
+    return render(request, 'etherpad-lite/padCreate.html', con)
 
 
-@login_required()
+@csrf_protect
+@login_required(login_url=LOGIN_URL)
 def padDelete(request, pk):
     """Delete a given pad
     """
@@ -67,22 +69,18 @@ def padDelete(request, pk):
     if request.method == 'POST':
         if 'confirm' in request.POST:
             pad.delete()
-        return HttpResponseRedirect(reverse_lazy('etherpad-profile'))
+        return HttpResponseRedirect(reverse_lazy('etherpadlite:profile'))
 
     con = {
-        'action': '/etherpad/delete/' + pk + '/',
+        'action': reverse_lazy('etherpadlite:delete', args=[pk]),
         'question': _('Really delete this pad?'),
-        'title': _('Deleting %(pad)s') % {'pad': pad.__unicode__()}
+        'title': _('Deleting %(pad)s') % {'pad': pad.__str__()}
     }
-    con.update(csrf(request))
-    return render_to_response(
-        'etherpad-lite/confirm.html',
-        con,
-        context_instance=RequestContext(request)
-    )
+    #con.update(csrf(request))
+    return render(request, 'etherpad-lite/confirm.html', con)
 
-
-@login_required()
+@csrf_protect
+@login_required(login_url=LOGIN_URL)
 def groupCreate(request):
     """ Create a new Group
     """
@@ -97,7 +95,7 @@ def groupCreate(request):
             pad_group = PadGroup(group=group, server=server)
             pad_group.save()
             request.user.groups.add(group)
-            return HttpResponseRedirect(reverse_lazy("etherpad-profile"))
+            return HttpResponseRedirect(reverse_lazy("etherpadlite:profile"))
         else:
             message = _("This Groupname is allready in use or invalid.")
     else:  # No form to process so create a fresh one
@@ -107,26 +105,22 @@ def groupCreate(request):
         'title': _('Create a new Group'),
         'message': message,
     }
-    con.update(csrf(request))
-    return render_to_response(
-        'etherpad-lite/groupCreate.html',
-        con,
-        context_instance=RequestContext(request)
-    )
+    #con.update(csrf(request))
+    return render(request, 'etherpad-lite/groupCreate.html', con)
 
 
-@login_required()
+@login_required(login_url=LOGIN_URL)
 def groupDelete(request, pk):
     """
     """
     pass
 
 
-@login_required()
+@login_required(login_url=LOGIN_URL)
 def profile(request):
     """Display a user profile containing etherpad groups and associated pads
     """
-    name = request.user.__unicode__()
+    name = request.user.__str__()
 
     try:  # Retrieve the corresponding padauthor object
         author = PadAuthor.objects.get(user=request.user)
@@ -136,27 +130,26 @@ def profile(request):
             server=PadServer.objects.get(id=1)
         )
         author.save()
-    author.GroupSynch()
 
     groups = {}
     for g in author.group.all():
-        groups[g.__unicode__()] = {
+        groups[g.__str__()] = {
             'group': g,
             'pads': Pad.objects.filter(group=g)
         }
 
-    return render_to_response(
+    return render(
+        request,
         'etherpad-lite/profile.html',
         {
             'name': name,
             'author': author,
             'groups': groups
-        },
-        context_instance=RequestContext(request)
+        }
     )
 
 
-@login_required()
+@login_required(login_url=LOGIN_URL)
 def pad(request, pk):
     """Create and session and display an embedded pad
     """
@@ -164,21 +157,21 @@ def pad(request, pk):
     # Initialize some needed values
     pad = get_object_or_404(Pad, pk=pk)
     padLink = pad.server.url + 'p/' + pad.group.groupID + '$' + \
-        urllib.quote_plus(pad.name)
+        urllib.parse.quote_plus(pad.name)
     server = urlparse(pad.server.url)
     author = PadAuthor.objects.get(user=request.user)
 
     if author not in pad.group.authors.all():
-        response = render_to_response(
+        response = render(
+            request,
             'etherpad-lite/pad.html',
             {
                 'pad': pad,
                 'link': padLink,
                 'server': server,
-                'uname': author.user.__unicode__(),
+                'uname': author.user.__str__(),
                 'error': _('You are not allowed to view or edit this pad')
-            },
-            context_instance=RequestContext(request)
+            }
         )
         return response
 
@@ -194,37 +187,39 @@ def pad(request, pk):
             author.authorID,
             time.mktime(expires.timetuple()).__str__()
         )
-    except Exception, e:
-        response = render_to_response(
+    except Exception:
+        response = render(
+            request,
             'etherpad-lite/pad.html',
             {
                 'pad': pad,
                 'link': padLink,
                 'server': server,
-                'uname': author.user.__unicode__(),
+                'uname': author.user.__str__(),
                 'error': _('etherpad-lite session request returned:') +
                 ' "' + e.reason + '"'
-            },
-            context_instance=RequestContext(request)
+            }
         )
         return response
 
+
     # Set up the response
-    response = render_to_response(
+    response = render(
+        request,
         'etherpad-lite/pad.html',
         {
             'pad': pad,
             'link': padLink,
             'server': server,
-            'uname': author.user.__unicode__(),
+            'uname': author.user.__str__(),
             'error': False
-        },
-        context_instance=RequestContext(request)
+        }
     )
 
     # Delete the existing session first
     if ('padSessionID' in request.COOKIES):
-        epclient.deleteSession(request.COOKIES['sessionID'])
+        if ('sessionID' in request.COOKIES):
+            epclient.deleteSession(request.COOKIES['sessionID'])
         response.delete_cookie('sessionID', server.hostname)
         response.delete_cookie('padSessionID')
 
@@ -243,3 +238,64 @@ def pad(request, pk):
         httponly=False
     )
     return response
+
+
+@csrf_protect
+@login_required(login_url=LOGIN_URL)
+def padSettings(request, pk):
+    
+    message = None
+    pad = get_object_or_404(Pad, pk=pk)
+    
+    if request.method == 'POST':
+        form = forms.SettingsForm(request.POST)
+        if form.is_valid():
+            pad.password = form.cleaned_data['password']
+            pad.is_public = form.cleaned_data['is_public']
+            pad.save()
+    else:
+        form = forms.SettingsForm({
+            'password': pad.password,
+            'is_public': pad.is_public,
+        })
+    
+    return render(
+        request,
+        'etherpad-lite/pad-settings.html',
+        {
+            'form': form,
+            'message': message
+        }
+    )
+
+
+def login_view(request):
+    if request.method == 'POST':
+        form = forms.LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return HttpResponseRedirect(request.GET['next'])
+            else:
+                message = _("Wrong credentials")
+        else:
+            message = _("Invalid form data")
+        return render(
+            request,
+            'etherpad-lite/login.html',
+            {
+                'form': form,
+                'message': message
+            }
+        )
+    else:
+        form = forms.LoginForm()
+        return render(request, 'etherpad-lite/login.html', {'form': form})
+    
+        
+def logout_view(request):
+    logout(request)
+    return render(request, 'etherpad-lite/logout.html')

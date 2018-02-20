@@ -1,0 +1,23 @@
+{% extends "etherpad-lite/base.html" %}
+{% load i18n %}
+
+{% block pad_content %}
+  {% if message %}
+  <b>{{message}}</b>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <table>
+      <tr>
+        <td>{{ form.password.label_tag }}</td>
+        <td>{{ form.password }}</td>
+      </tr>
+      <tr>
+        <td>{{ form.is_public.label_tag }}</td>
+        <td>{{ form.is_public }}</td>
+      </tr>
+    </table>
+    {{ form.group }}
+    <input class="submit" type="submit" value="{%trans 'Set' %}" />
+  </form>
+{% endblock %}

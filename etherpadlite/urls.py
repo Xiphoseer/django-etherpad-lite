@@ -1,26 +1,20 @@
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
-import etherpadlite
+from etherpadlite import views
+from django.contrib.auth.views import login, logout
 import django
 
 
-
-urlpatterns = patterns(
-    '',
-    url(r'^pad/(?P<pk>\d+)/$', etherpadlite.views.pad, name="pad"),
-    url(r'^create/(?P<pk>\d+)/$', etherpadlite.views.padCreate, name="create"),
-    url(r'^delete/(?P<pk>\d+)/$', etherpadlite.views.padDelete, name="delete"),
-    url(r'^group/create/$', etherpadlite.views.groupCreate, name="groupcreate"),
-    url(r'^profile/$', etherpadlite.views.profile, name="etherpad-profile"),
-
-
-    url(r'^$', django.contrib.auth.views.login,
-        {'template_name': 'etherpad-lite/login.html'}),
-    url(r'^etherpad$', django.contrib.auth.views.login,
-        {'template_name': 'etherpad-lite/login.html'}),
-    url(r'^logout$', django.contrib.auth.views.logout,
-        {'template_name': 'etherpad-lite/logout.html'}),
-    url(r'^accounts/profile/$', etherpadlite.views.profile),
-
-)
+app_name = 'etherpadlite'
+urlpatterns = [
+    url(r'^pad/(?P<pk>\d+)/$', views.pad, name="pad"),
+    url(r'^padsettings/(?P<pk>\d+)/$', views.padSettings, name="padsettings"),
+    url(r'^create/(?P<pk>\d+)/$', views.padCreate, name="create"),
+    url(r'^delete/(?P<pk>\d+)/$', views.padDelete, name="delete"),
+    url(r'^group/create/$', views.groupCreate, name="groupcreate"),
+    url(r'^profile/$', views.profile, name="profile"),
+    
+    url(r'^login/$', views.login_view, name='login'),
+    url(r'^logout/$', views.logout_view, name='logout'),
+]

@@ -1,7 +1,8 @@
 # coding=utf-8
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.utils import simplejson
+
+import json
 
 
 class Command(BaseCommand):
@@ -50,4 +51,4 @@ class Command(BaseCommand):
                     conf['dbSettings']['password'] = dbconf['PASSWORD']
                     conf['dbSettings']['host'] = dbconf['HOST']
             del conf['databaseAlias']
-        print simplejson.dumps(conf, indent=4 * ' ')
+        print(json.dumps(conf, indent=4 * ' '))

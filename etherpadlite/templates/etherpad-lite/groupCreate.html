@@ -1,5 +1,4 @@
 {% extends "etherpad-lite/base.html" %}
-{% load url from future %}
 {% load i18n %}
 
 {% block title %}{{title}}{% endblock %}
@@ -7,7 +6,7 @@
 {% block content %}
   <h1>{{title}}</h1>
   {{message}}
-  <form action="/group/create/" method="post">
+  <form method="post">
     {% csrf_token %}
     <table>
       <tr>

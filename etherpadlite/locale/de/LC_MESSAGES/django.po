@@ -1,0 +1,154 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2018-02-20 17:04+0100\n"
+"PO-Revision-Date: 2018-02-20 17:04+0100\n"
+"Last-Translator: Daniel Schweighöfer <dschweighoefer@d120.de>\n"
+"Language-Team: \n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 1.8.11\n"
+
+#: etherpadlite/forms.py:7
+msgid "Name"
+msgstr "Name"
+
+#: etherpadlite/models.py:17
+msgid "URL"
+msgstr "URL"
+
+#: etherpadlite/models.py:20
+msgid "API key"
+msgstr "API Schlüssel"
+
+#: etherpadlite/models.py:21
+msgid "description"
+msgstr "Beschreibung"
+
+#: etherpadlite/models.py:24
+msgid "server"
+msgstr "Server"
+
+#: etherpadlite/models.py:25
+msgid "servers"
+msgstr "Server"
+
+#: etherpadlite/models.py:48
+msgid "group"
+msgstr "Gruppe"
+
+#: etherpadlite/models.py:49
+msgid "groups"
+msgstr "Gruppen"
+
+#: etherpadlite/models.py:116
+msgid "author"
+msgstr "Autor"
+
+#: etherpadlite/models.py:117
+msgid "authors"
+msgstr "Autoren"
+
+#: etherpadlite/templates/etherpad-lite/base.html:16
+msgid "profile"
+msgstr "Profil"
+
+#: etherpadlite/templates/etherpad-lite/base.html:17
+msgid "logout"
+msgstr "Abmelden"
+
+#: etherpadlite/templates/etherpad-lite/confirm.html:12
+msgid "No"
+msgstr "Nein"
+
+#: etherpadlite/templates/etherpad-lite/confirm.html:13
+msgid "Yes"
+msgstr "Ja"
+
+#: etherpadlite/templates/etherpad-lite/groupCreate.html:18
+#: etherpadlite/templates/etherpad-lite/padCreate.html:18
+msgid "Create"
+msgstr "Erstellen"
+
+#: etherpadlite/templates/etherpad-lite/login.html:4
+#: etherpadlite/templates/etherpad-lite/login.html:7
+#: etherpadlite/templates/etherpad-lite/login.html:25
+msgid "Login"
+msgstr "Anmelden"
+
+#: etherpadlite/templates/etherpad-lite/login.html:9
+msgid "Your username and password didn't match. Please try again."
+msgstr ""
+"Dein Benutzername und Passwort passen nicht zusammen. Bitte versuche es "
+"erneut."
+
+#: etherpadlite/templates/etherpad-lite/logout.html:4
+msgid "Logout"
+msgstr "Abmelden"
+
+#: etherpadlite/templates/etherpad-lite/logout.html:7
+msgid "You have been logged out."
+msgstr "Du wurdest abgemeldet"
+
+#: etherpadlite/templates/etherpad-lite/logout.html:7
+msgid "Log back in."
+msgstr "Erneut anmelden."
+
+#: etherpadlite/templates/etherpad-lite/profile.html:10
+msgid "PADS:"
+msgstr "PADS:"
+
+#: etherpadlite/templates/etherpad-lite/profile.html:18
+msgid "Del"
+msgstr "Entf."
+
+#: etherpadlite/templates/etherpad-lite/profile.html:22
+msgid "Add"
+msgstr "Hzfg."
+
+#: etherpadlite/views.py:55
+#, python-format
+msgid "Create pad in %(grp)s"
+msgstr "Erzeuge Pad in %(grp)s"
+
+#: etherpadlite/views.py:76
+msgid "Really delete this pad?"
+msgstr "Dieses Pad wirklich löschen?"
+
+#: etherpadlite/views.py:77
+#, python-format
+msgid "Deleting %(pad)s"
+msgstr "Lösche %(pad)s"
+
+#: etherpadlite/views.py:100
+msgid "This Groupname is allready in use or invalid."
+msgstr "Dieser Gruppenname wird bereits verwendet oder ist ungültig."
+
+#: etherpadlite/views.py:105
+msgid "Create a new Group"
+msgstr "Neue Gruppe anlegen"
+
+#: etherpadlite/views.py:173
+msgid "You are not allowed to view or edit this pad"
+msgstr "Du bist nicht berechtigt, dieses Pad zu sehen oder zu bearbeiten"
+
+#: etherpadlite/views.py:199
+msgid "etherpad-lite session request returned:"
+msgstr "Etherpad-lite Sitzungsanfrage ergab:"
+
+#: etherpadlite/views.py:252
+msgid "Wrong credentials"
+msgstr "Falsche Anmeldedaten"
+
+#: etherpadlite/views.py:254
+msgid "Invalid form data"
+msgstr "Formular ungültig"

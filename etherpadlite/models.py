@@ -22,8 +22,9 @@ class PadServer(models.Model):
 
     class Meta:
         verbose_name = _('server')
+        verbose_name_plural = _('servers')
 
-    def __unicode__(self):
+    def __str__(self):
         return self.url
 
     #TODO: validate url has trailing / or amend code elsewhere to add it if missing
@@ -45,9 +46,14 @@ class PadGroup(models.Model):
 
     class Meta:
         verbose_name = _('group')
+        verbose_name_plural = _('groups')
 
-    def __unicode__(self):
-        return self.group.__unicode__()
+    def __str__(self):
+        return self.group.__str__()
+
+    @property
+    def authors(self):
+        return PadAuthor.objects.all().filter(server=self.server, user__in=self.group.user_set.all());
 
     @property
     def epclient(self):
@@ -61,7 +67,7 @@ class PadGroup(models.Model):
 
     def EtherMap(self):
         result = self.epclient.createGroupIfNotExistsFor(
-            self.group.__unicode__() + self._get_random_id() +
+            self.group.__str__() + self._get_random_id() +
             self.group.id.__str__()
         )
         self.groupID = result['groupID']
@@ -105,37 +111,26 @@ class PadAuthor(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL)
     authorID = models.CharField(max_length=256, blank=True)
     server = models.ForeignKey(PadServer)
-    group = models.ManyToManyField(
-        PadGroup,
-        blank=True,
-        null=True,
-        related_name='authors'
-    )
 
     class Meta:
         verbose_name = _('author')
+        verbose_name_plural = _('authors')
 
-    def __unicode__(self):
-        return self.user.__unicode__()
+    def __str__(self):
+        return self.user.__str__()
 
     def EtherMap(self):
         epclient = EtherpadLiteClient(self.server.apikey, self.server.apiurl)
         result = epclient.createAuthorIfNotExistsFor(
             self.user.id.__str__(),
-            name=self.__unicode__()
+            name=self.__str__()
         )
         self.authorID = result['authorID']
         return result
 
-    def GroupSynch(self, *args, **kwargs):
-        for ag in self.user.groups.all():
-            try:
-                gr = PadGroup.objects.get(group=ag)
-            except PadGroup.DoesNotExist:
-                gr = False
-            if (isinstance(gr, PadGroup)):
-                self.group.add(gr)
-        super(PadAuthor, self).save(*args, **kwargs)
+    @property
+    def group(self):
+        return PadGroup.objects.all().filter(server=self.server, group__in=self.user.groups.all())
 
     def save(self, *args, **kwargs):
         self.EtherMap()
@@ -145,26 +140,47 @@ class PadAuthor(models.Model):
 class Pad(models.Model):
     """Schema and methods for etherpad-lite pads
     """
+    
+    # The name of the pad
     name = models.CharField(max_length=256)
+
+    # The server for this pad
     server = models.ForeignKey(PadServer)
+
+    # The group that has access to this pad
     group = models.ForeignKey(PadGroup)
 
-    def __unicode__(self):
-        return self.name
+    # The padid, which is only set after the pad was created on the server
+    padid = models.CharField(max_length=256, null=True)
 
-    @property
-    def padid(self):
-        return "%s$%s" % (self.group.groupID, self.name)
+    # An optional password
+    password = models.CharField(max_length=100, null=True)
+
+    # Whether the pad is public
+    is_public = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
 
     @property
     def epclient(self):
         return EtherpadLiteClient(self.server.apikey, self.server.apiurl)
 
     def Create(self):
-        return self.epclient.createGroupPad(self.group.groupID, self.name)
+        self.epclient.createGroupPad(self.group.groupID, self.name)
+        self.padid = "%s$%s" % (self.group.groupID, self.name)
+
+    def Update(self):
+        if self.password:
+            self.epclient.setPassword(self.padid,self.password)
+        self.epclient.setPublicStatus(self.padid,"true" if self.is_public else "false") # Sigh, pyEtherpadLite
+        print(self.epclient.getPublicStatus(self.padid))
 
     def Destroy(self):
-        return self.epclient.deletePad(self.padid)
+        try:
+            res = self.epclient.deletePad(self.padid)
+        except ValueError as e:
+            pass
 
     def isPublic(self):
         result = self.epclient.getPublicStatus(self.padid)
@@ -174,7 +190,9 @@ class Pad(models.Model):
         return self.epclient.getReadOnlyID(self.padid)
 
     def save(self, *args, **kwargs):
-        self.Create()
+        if not self.padid:
+            self.Create()
+        self.Update()
         super(Pad, self).save(*args, **kwargs)
 
 

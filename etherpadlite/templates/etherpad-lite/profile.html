@@ -1,10 +1,9 @@
 {% extends "etherpad-lite/base.html" %}
-{% load url from future %}
 {% load i18n %}
 
 {% block title %}{{name}}{% endblock %}
 
-{% block content %}
+{% block pad_content %}
 
 <h1>{{name}}</h1>
 
@@ -14,9 +13,14 @@
     <h2>{{group}}</h2>
     <ul class="plain">
       {%for pad in data.pads%}
-      <li><a href="/etherpad/{{pad.id}}">{{pad.name}}</a><a class="action act-del" href="/etherpad/delete/{{pad.id}}">{% trans "Del" %}</a></li>
+      <li>
+        <a href="{% url 'etherpadlite:pad' pk=pad.id %}">{{pad.name}}</a>
+        <a class="action act-del" href="{% url 'etherpadlite:delete' pk=pad.id %}">{% trans "Del" %}</a>
+      </li>
       {%endfor%}
-      <li><a class="action act-add" href="/etherpad/create/{{data.group.id}}">{% trans "Add" %}</a></li>
+      <li>
+        <a class="action act-add" href="{% url 'etherpadlite:create' pk=data.group.id %}">{% trans "Add" %}</a>
+      </li>
     </ul>
   {% endfor %}
   </div>
