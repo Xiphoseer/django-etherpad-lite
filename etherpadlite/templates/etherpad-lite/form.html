@@ -1,0 +1,17 @@
+{% extends "etherpad-lite/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title}}{% endblock %}
+
+{% block pad_content %}
+  {% if message %}
+  <b>{{message}}</b>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <table>
+      {{ form.as_table }}
+    </table>
+    <input class="submit" type="submit" value="{{ submit }}" />
+  </form>
+{% endblock %}

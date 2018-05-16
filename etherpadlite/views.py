@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from django.shortcuts import render_to_response, render, get_object_or_404
 
 from django.http import HttpResponseRedirect
-from django.template import RequestContext
+from django.template import RequestContext, Template, Context
 #from django.core.context_processors import csrf
 from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
@@ -29,8 +29,78 @@ from etherpadlite import config
 
 LOGIN_URL = reverse_lazy('etherpadlite:login')
 
+def update_request(request):
+    """Updates the session to reflect the users group membership
+    """
+
+    # Get Author and groups
+    author = PadAuthor.objects.get(user=request.user)
+    epclient = author.server.epclient
+    server = urlparse(author.server.url)
+    groups = author.groups
+
+    now = datetime.datetime.utcnow()
+    expires = now + datetime.timedelta(seconds=config.SESSION_LENGTH)
+
+    sessions = request.session.get("etherpad",{
+        'expires': 0,
+        'domain': server.hostname,
+    })
+
+    old_expires = datetime.datetime.fromtimestamp(sessions.get('expires'))
+    new_expires = (expires if old_expires < now else old_expires)
+    new_sessions = {'expires': new_expires.timestamp(), 'domain': server.hostname }
+
+    # Provide valid sessions for all groups
+    for group in groups:
+        if group.groupID not in sessions or old_expires < now:
+            result = epclient.createSession(
+                group.groupID,
+                author.authorID,
+                str(time.mktime(new_expires.timetuple()))
+            )
+            new_sessions[group.groupID] = {
+                'sessionID': result["sessionID"],
+            }
+            if group.groupID in sessions:
+                sessions.pop(group.groupID)
+        elif group.groupID in sessions:
+            new_sessions[group.groupID] = sessions.pop(group.groupID)
+
+    # Invalidate remaining sessions
+    for session in sessions:
+        if session not in ('expires', 'domain'):
+            epclient.deleteSession(session.sessionID)
+
+    # Update session
+    request.session['etherpad'] = new_sessions
+
+def update_response(request, response):
+    sessions = request.session.get("etherpad",{})
+    #response.delete_cookie('sessionID', sessions.get('domain'))
+    response.set_cookie(
+        'sessionID',
+        value='%2C'.join(s['sessionID'] for g,s in sessions.items() if g not in ('expires', 'domain')),
+        expires=sessions.get('expires'),
+        domain=sessions.get('domain'),
+        httponly=False
+    )
+    return response
+
+# Lazily evaluate session only on etherpad viewss
+def session_wrapper(function):
+  def wrap(request, *args, **kwargs):
+    update_request(request)
+    return update_response(request, function(request, *args, **kwargs))
+
+  wrap.__doc__=function.__doc__
+  wrap.__name__=function.__name__
+  return wrap
+
+
 @login_required(login_url=LOGIN_URL)
 @csrf_protect
+@session_wrapper
 def padCreate(request, pk):
     """Create a named pad for the given group
     """
@@ -45,12 +115,14 @@ def padCreate(request, pk):
                 group=group
             )
             pad.save()
-            return HttpResponseRedirect(reverse_lazy("etherpadlite:profile"))
+            return HttpResponseRedirect(reverse_lazy("etherpadlite:group", args=[group.pk]))
     else:  # No form to process so create a fresh one
         form = forms.PadCreate({'group': group.groupID})
 
     con = {
         'form': form,
+        'submit': _("Create"),
+        'title': _("Create Pad"),
         'pk': pk,
         'title': _('Create pad in %(grp)s') % {'grp': group.__str__()}
     }
@@ -58,18 +130,20 @@ def padCreate(request, pk):
     return render(request, 'etherpad-lite/padCreate.html', con)
 
 
-@csrf_protect
 @login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
 def padDelete(request, pk):
     """Delete a given pad
     """
     pad = get_object_or_404(Pad, pk=pk)
+    group = pad.group
 
     # Any form submissions will send us back to the profile
     if request.method == 'POST':
         if 'confirm' in request.POST:
             pad.delete()
-        return HttpResponseRedirect(reverse_lazy('etherpadlite:profile'))
+        return HttpResponseRedirect(reverse_lazy('etherpadlite:group', args=[group.pk]))
 
     con = {
         'action': reverse_lazy('etherpadlite:delete', args=[pk]),
@@ -79,8 +153,63 @@ def padDelete(request, pk):
     #con.update(csrf(request))
     return render(request, 'etherpad-lite/confirm.html', con)
 
-@csrf_protect
+
 @login_required(login_url=LOGIN_URL)
+@csrf_protect
+def padSearch(request):
+    message = ""
+    pads = []
+
+    if request.method == 'POST':
+        form = forms.SearchForm(request.POST)
+        if form.is_valid():
+            server = form.cleaned_data['server']
+            result = server.epclient.call("search", {
+                "query": form.cleaned_data['query'],
+                "groupID": form.cleaned_data['group'].groupID,
+            })
+            pads = result.get("pads")
+        else:
+            message = _("Something went wrong!")
+    else:
+        form = forms.SearchForm()
+
+    con = {
+        'pads': pads,
+        'form': form,
+        'submit': _('search'),
+        'title': _('search'),
+        'message': message,
+    }
+    return render(request, 'etherpad-lite/search.html', con)
+
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+def groupSearch(request, group):
+    group = get_object_or_404(PadGroup, group_mapper=group)
+    pads = []
+
+    query = request.GET.get("query","");
+    if query:
+        result = group.server.epclient.call("search", {
+            "query": query,
+            "groupID": group.groupID,
+        })
+        pads = [{
+            "pad": Pad.objects.filter(padid=pad.get("pad")).first(),
+            "matches": pad.get("matches"),
+        } for pad in result.get("pads")]
+
+    con = {
+        'pads': pads,
+        'query': query,
+    }
+    return render(request, 'etherpad-lite/group-search.html', con)
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
 def groupCreate(request):
     """ Create a new Group
     """
@@ -89,23 +218,17 @@ def groupCreate(request):
         form = forms.GroupCreate(request.POST)
         if form.is_valid():
             group = form.save()
-            # temporarily it is not nessessary to specify a server, so we take
-            # the first one we get.
-            server = PadServer.objects.all()[0]
-            pad_group = PadGroup(group=group, server=server)
-            pad_group.save()
-            request.user.groups.add(group)
-            return HttpResponseRedirect(reverse_lazy("etherpadlite:profile"))
+            return HttpResponseRedirect(reverse_lazy("etherpadlite:groupmapper", args=[group.group_mapper]))
         else:
-            message = _("This Groupname is allready in use or invalid.")
+            message = _("This Groupname is already in use or invalid.")
     else:  # No form to process so create a fresh one
         form = forms.GroupCreate()
     con = {
         'form': form,
+        'submit': _('Create'),
         'title': _('Create a new Group'),
         'message': message,
     }
-    #con.update(csrf(request))
     return render(request, 'etherpad-lite/groupCreate.html', con)
 
 
@@ -149,18 +272,16 @@ def profile(request):
     )
 
 
-@login_required(login_url=LOGIN_URL)
-def pad(request, pk):
+@session_wrapper
+def pad_provider(request, pad):
     """Create and session and display an embedded pad
     """
 
     # Initialize some needed values
-    pad = get_object_or_404(Pad, pk=pk)
-    padLink = pad.server.url + 'p/' + pad.group.groupID + '$' + \
-        urllib.parse.quote_plus(pad.name)
+    padLink = pad.server.url + 'p/' + pad.padid
     server = urlparse(pad.server.url)
+    
     author = PadAuthor.objects.get(user=request.user)
-
     if author not in pad.group.authors.all():
         response = render(
             request,
@@ -175,34 +296,6 @@ def pad(request, pk):
         )
         return response
 
-    # Create the session on the etherpad-lite side
-    expires = datetime.datetime.utcnow() + datetime.timedelta(
-        seconds=config.SESSION_LENGTH
-    )
-    epclient = EtherpadLiteClient(pad.server.apikey, pad.server.apiurl)
-
-    try:
-        result = epclient.createSession(
-            pad.group.groupID,
-            author.authorID,
-            time.mktime(expires.timetuple()).__str__()
-        )
-    except Exception:
-        response = render(
-            request,
-            'etherpad-lite/pad.html',
-            {
-                'pad': pad,
-                'link': padLink,
-                'server': server,
-                'uname': author.user.__str__(),
-                'error': _('etherpad-lite session request returned:') +
-                ' "' + e.reason + '"'
-            }
-        )
-        return response
-
-
     # Set up the response
     response = render(
         request,
@@ -216,57 +309,164 @@ def pad(request, pk):
         }
     )
 
-    # Delete the existing session first
-    if ('padSessionID' in request.COOKIES):
-        if ('sessionID' in request.COOKIES):
-            epclient.deleteSession(request.COOKIES['sessionID'])
-        response.delete_cookie('sessionID', server.hostname)
-        response.delete_cookie('padSessionID')
+    session = request.session.get("etherpad")
+    expires = datetime.datetime.fromtimestamp(session.get('expires'))
+    sessionID = session.get(pad.group.groupID).get('sessionID')
 
-    # Set the new session cookie for both the server and the local site
-    response.set_cookie(
-        'sessionID',
-        value=result['sessionID'],
-        expires=expires,
-        domain=server.hostname,
-        httponly=False
-    )
     response.set_cookie(
         'padSessionID',
-        value=result['sessionID'],
+        value=sessionID,
         expires=expires,
         httponly=False
     )
     return response
 
 
-@csrf_protect
 @login_required(login_url=LOGIN_URL)
+def pad(request, pk):
+    pad_instance = get_object_or_404(Pad, pk=pk)
+    return pad_provider(request, pad_instance)
+
+def padShortLink(request, slug):
+    pad_instance = get_object_or_404(Pad, slug=slug)
+    return pad_provider(request, pad_instance)
+
+@login_required(login_url=LOGIN_URL)
+def padMapper(request, group, show):
+    name = show.replace("_", " ")
+    pad_instance = get_object_or_404(Pad, group__group_mapper=group, name=name)
+    return pad_provider(request, pad_instance)
+
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
+def padIndex(request):
+    con = {
+        'categories': PadCategory.objects.all().filter(parent=None),
+        'groups': PadGroup.objects.all().filter(parent=None),
+    }
+    return render(request, 'etherpad-lite/index.html', con)
+
+
+@session_wrapper
+@csrf_protect
+def group_provide(request, group):
+
+    pads = group.pad_set.all()
+    if "query" in request.GET:
+        pads = pads.filter(name__contains=request.GET.get("query"))
+
+    con = {
+        'current': group,
+        'pads': pads,
+        'create_form': forms.PadCreate({'group': group.groupID}),
+        'categories': PadCategory.objects.all().filter(parent=None),
+        'groups': PadGroup.objects.all().filter(parent=None),
+    }
+    return render(request, 'etherpad-lite/index.html', con)
+
+
+@login_required(login_url=LOGIN_URL)
+def padGroup(request, pk):
+    group = get_object_or_404(PadGroup, pk=pk)
+    return group_provide(request, group)
+
+
+@login_required(login_url=LOGIN_URL)
+def groupMapper(request, group):
+    group = get_object_or_404(PadGroup, group_mapper=group)
+    return group_provide(request, group)
+
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
+def groupSettings(request, group):
+    group = get_object_or_404(PadGroup, group_mapper=group)
+    message = ""
+
+    if request.method == 'POST':  # Process the form
+        form = forms.GroupSettingsForm(request.POST, instance=group)
+        if form.is_valid():
+            group = form.save()
+            return HttpResponseRedirect(reverse_lazy("etherpadlite:group", args=[group.pk]))
+        else:
+            message = _("This Groupname is already in use or invalid.")
+    else:
+        form = forms.GroupSettingsForm(instance=group)
+    
+    con = {
+        'group': group,
+        'form': form,
+        'title': _("group settings"),
+        'submit': _("save"),
+    }
+    return render(request, 'etherpad-lite/group-settings.html', con)
+
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
 def padSettings(request, pk):
     
     message = None
     pad = get_object_or_404(Pad, pk=pk)
     
     if request.method == 'POST':
-        form = forms.SettingsForm(request.POST)
+        form = forms.SettingsForm(request.POST, instance=pad)
         if form.is_valid():
-            pad.password = form.cleaned_data['password']
-            pad.is_public = form.cleaned_data['is_public']
-            pad.save()
+            pad = form.save()
     else:
-        form = forms.SettingsForm({
-            'password': pad.password,
-            'is_public': pad.is_public,
-        })
+        form = forms.SettingsForm(instance=pad)
     
     return render(
         request,
         'etherpad-lite/pad-settings.html',
         {
+            'title': _("pad settings"),
+            'submit': _("save"),
             'form': form,
             'message': message
         }
     )
+
+@login_required(login_url=LOGIN_URL)
+@csrf_protect
+@session_wrapper
+def padDuplicate(request, pk):
+    pad = get_object_or_404(Pad, pk=pk)
+    date = datetime.datetime.now()
+    
+    text = pad.epclient.getText(pad.padid).get("text")
+    text_template = Template(text)
+
+    pass_template = Template(pad.template_password)
+    password = pass_template.render(Context({}))
+    name_template = Template(pad.template_padname)
+    padname = name_template.render(Context({"date": date }))
+    slug_template = Template(pad.template_slug)
+    slug = slug_template.render(Context({"date": date }))
+
+    new_text = text_template.render(Context({
+        "password": password,
+        "date": date,
+        "name": padname,
+        "slug": slug
+    }))
+
+    new_pad = Pad()
+    new_pad.group = pad.group
+    new_pad.name = padname
+    new_pad.slug = slug
+    new_pad.server = pad.server
+    new_pad.password = password
+    new_pad.is_public = pad.template_is_public
+    new_pad.save()
+
+    new_pad.epclient.setText(new_pad.padid, new_text)
+
+    return HttpResponseRedirect(reverse_lazy('etherpadlite:pad', args=[new_pad.pk]))
 
 
 def login_view(request):

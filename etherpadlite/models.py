@@ -7,6 +7,7 @@ from py_etherpad import EtherpadLiteClient
 
 import string
 import random
+import urllib
 
 class PadServer(models.Model):
     """Schema and methods for etherpad-lite servers
@@ -36,40 +37,80 @@ class PadServer(models.Model):
         else:
             return "%s/api" % self.url
 
+    @property
+    def epclient(self):
+        return EtherpadLiteClient(self.apikey, self.apiurl)
+
+
+class PadCategory(models.Model):
+    """Nested hierarchie for pad groups
+    """
+    name = models.CharField(max_length=256)
+    parent = models.ForeignKey("self", null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = _('category')
+        verbose_name_plural = _('categories')
+
 
 class PadGroup(models.Model):
     """Schema and methods for etherpad-lite groups
     """
     group = models.ForeignKey(Group)
-    groupID = models.CharField(max_length=256, blank=True)
+    group_mapper = models.SlugField(max_length=256, unique=True)
+
+    groupID = models.CharField(max_length=256, null=True, blank=True)
     server = models.ForeignKey(PadServer)
+
+    name = models.CharField(max_length=256, null=True, blank=True)
+    parent = models.ForeignKey(PadCategory, null=True, blank=True)
 
     class Meta:
         verbose_name = _('group')
         verbose_name_plural = _('groups')
 
     def __str__(self):
-        return self.group.__str__()
+        return self.title
+
+    @property
+    def title(self):
+        if self.name:
+            return self.name
+        return str(self.group)
+
+    @property
+    def top_category(self):
+        cat = self.parent
+        while cat and cat.parent:
+            cat = cat.parent
+        return cat
+
+    @property
+    def full_path(self):
+        path = [self.title]
+        cat = self.parent
+        while cat:
+            path = [cat.name] + path
+            cat = cat.parent
+        return path
 
     @property
     def authors(self):
         return PadAuthor.objects.all().filter(server=self.server, user__in=self.group.user_set.all());
 
     @property
-    def epclient(self):
-        return EtherpadLiteClient(self.server.apikey, self.server.apiurl)
+    def templates(self):
+        return Pad.objects.all().filter(group=self, is_template=True)
 
-    def _get_random_id(self, size=6,
-        chars=string.ascii_uppercase + string.digits + string.ascii_lowercase):
-        """ To make the ID unique, we generate a randomstring
-        """
-        return ''.join(random.choice(chars) for x in range(size))    
+    @property
+    def epclient(self):
+        return self.server.epclient
 
     def EtherMap(self):
-        result = self.epclient.createGroupIfNotExistsFor(
-            self.group.__str__() + self._get_random_id() +
-            self.group.id.__str__()
-        )
+        result = self.epclient.createGroupIfNotExistsFor(self.group_mapper)
         self.groupID = result['groupID']
         return result
 
@@ -120,7 +161,7 @@ class PadAuthor(models.Model):
         return self.user.__str__()
 
     def EtherMap(self):
-        epclient = EtherpadLiteClient(self.server.apikey, self.server.apiurl)
+        epclient = self.server.epclient
         result = epclient.createAuthorIfNotExistsFor(
             self.user.id.__str__(),
             name=self.__str__()
@@ -129,8 +170,12 @@ class PadAuthor(models.Model):
         return result
 
     @property
-    def group(self):
+    def groups(self):
         return PadGroup.objects.all().filter(server=self.server, group__in=self.user.groups.all())
+
+    @property
+    def group(self): # Backwards compatibility
+        return self.groups
 
     def save(self, *args, **kwargs):
         self.EtherMap()
@@ -151,13 +196,26 @@ class Pad(models.Model):
     group = models.ForeignKey(PadGroup)
 
     # The padid, which is only set after the pad was created on the server
-    padid = models.CharField(max_length=256, null=True)
+    padid = models.CharField(max_length=256, null=True, blank=True)
 
     # An optional password
-    password = models.CharField(max_length=100, null=True)
+    password = models.CharField(max_length=100, null=True, blank=True)
+
+    # An optional shortlink
+    slug = models.CharField(max_length=100, null=True, blank=True, unique=True)
 
     # Whether the pad is public
     is_public = models.BooleanField(default=False)
+
+    # Whether this pad is a template
+    is_template = models.BooleanField(default=False)
+    
+    # Template Settings
+    template_is_public = models.BooleanField(default=False)
+    template_password = models.CharField(max_length=256, blank=True)
+    template_padname = models.CharField(max_length=256, blank=True)
+    template_slug = models.CharField(max_length=256, blank=True)
+
 
     def __str__(self):
         return self.name
@@ -168,7 +226,7 @@ class Pad(models.Model):
 
     def Create(self):
         self.epclient.createGroupPad(self.group.groupID, self.name)
-        self.padid = "%s$%s" % (self.group.groupID, self.name)
+        self.padid = "%s$%s" % (self.group.groupID, urllib.parse.quote_plus(self.name.replace(" ", "_")))
 
     def Update(self):
         if self.password:
@@ -179,7 +237,7 @@ class Pad(models.Model):
     def Destroy(self):
         try:
             res = self.epclient.deletePad(self.padid)
-        except ValueError as e:
+        except ValueError:
             pass
 
     def isPublic(self):

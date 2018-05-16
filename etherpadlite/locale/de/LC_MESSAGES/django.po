@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-02-20 17:04+0100\n"
-"PO-Revision-Date: 2018-02-20 17:04+0100\n"
+"POT-Creation-Date: 2018-02-21 04:18+0100\n"
+"PO-Revision-Date: 2018-02-21 04:19+0100\n"
 "Last-Translator: Daniel Schweighöfer <dschweighoefer@d120.de>\n"
 "Language-Team: \n"
 "Language: de\n"
@@ -22,39 +22,39 @@ msgstr ""
 msgid "Name"
 msgstr "Name"
 
-#: etherpadlite/models.py:17
+#: etherpadlite/models.py:18
 msgid "URL"
 msgstr "URL"
 
-#: etherpadlite/models.py:20
+#: etherpadlite/models.py:21
 msgid "API key"
 msgstr "API Schlüssel"
 
-#: etherpadlite/models.py:21
+#: etherpadlite/models.py:22
 msgid "description"
 msgstr "Beschreibung"
 
-#: etherpadlite/models.py:24
+#: etherpadlite/models.py:25
 msgid "server"
 msgstr "Server"
 
-#: etherpadlite/models.py:25
+#: etherpadlite/models.py:26
 msgid "servers"
 msgstr "Server"
 
-#: etherpadlite/models.py:48
+#: etherpadlite/models.py:62
 msgid "group"
 msgstr "Gruppe"
 
-#: etherpadlite/models.py:49
+#: etherpadlite/models.py:63
 msgid "groups"
 msgstr "Gruppen"
 
-#: etherpadlite/models.py:116
+#: etherpadlite/models.py:149
 msgid "author"
 msgstr "Autor"
 
-#: etherpadlite/models.py:117
+#: etherpadlite/models.py:150
 msgid "authors"
 msgstr "Autoren"
 
@@ -74,8 +74,8 @@ msgstr "Nein"
 msgid "Yes"
 msgstr "Ja"
 
-#: etherpadlite/templates/etherpad-lite/groupCreate.html:18
-#: etherpadlite/templates/etherpad-lite/padCreate.html:18
+#: etherpadlite/templates/etherpad-lite/groupCreate.html:14
+#: etherpadlite/views.py:54
 msgid "Create"
 msgstr "Erstellen"
 
@@ -116,39 +116,55 @@ msgid "Add"
 msgstr "Hzfg."
 
 #: etherpadlite/views.py:55
+msgid "Create Pad"
+msgstr "Pad Erstellen"
+
+#: etherpadlite/views.py:57
 #, python-format
 msgid "Create pad in %(grp)s"
 msgstr "Erzeuge Pad in %(grp)s"
 
-#: etherpadlite/views.py:76
+#: etherpadlite/views.py:78
 msgid "Really delete this pad?"
 msgstr "Dieses Pad wirklich löschen?"
 
-#: etherpadlite/views.py:77
+#: etherpadlite/views.py:79
 #, python-format
 msgid "Deleting %(pad)s"
 msgstr "Lösche %(pad)s"
 
-#: etherpadlite/views.py:100
-msgid "This Groupname is allready in use or invalid."
+#: etherpadlite/views.py:96 etherpadlite/views.py:271
+msgid "This Groupname is already in use or invalid."
 msgstr "Dieser Gruppenname wird bereits verwendet oder ist ungültig."
 
-#: etherpadlite/views.py:105
+#: etherpadlite/views.py:101
 msgid "Create a new Group"
 msgstr "Neue Gruppe anlegen"
 
-#: etherpadlite/views.py:173
+#: etherpadlite/views.py:167
 msgid "You are not allowed to view or edit this pad"
 msgstr "Du bist nicht berechtigt, dieses Pad zu sehen oder zu bearbeiten"
 
-#: etherpadlite/views.py:199
+#: etherpadlite/views.py:193
 msgid "etherpad-lite session request returned:"
 msgstr "Etherpad-lite Sitzungsanfrage ergab:"
 
-#: etherpadlite/views.py:252
+#: etherpadlite/views.py:278
+msgid "group settings"
+msgstr "Gruppen Einstellungen"
+
+#: etherpadlite/views.py:279 etherpadlite/views.py:303
+msgid "save"
+msgstr "Speichern"
+
+#: etherpadlite/views.py:302
+msgid "pad settings"
+msgstr "Pad Einstellungen"
+
+#: etherpadlite/views.py:353
 msgid "Wrong credentials"
 msgstr "Falsche Anmeldedaten"
 
-#: etherpadlite/views.py:254
+#: etherpadlite/views.py:355
 msgid "Invalid form data"
 msgstr "Formular ungültig"
