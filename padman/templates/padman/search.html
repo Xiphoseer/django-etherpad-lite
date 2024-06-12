@@ -1,0 +1,25 @@
+{% extends "padman/base.html" %}
+{% load i18n %}
+
+{% block pad_content %}
+
+  <form method="POST">
+    {{ form.as_table }}
+    {% csrf_token %}
+    <button type="submit">{% trans "Search" %}</button>
+  </form>
+
+  <ul>
+  {% for pad in pads %}
+    <li>
+      <h5><a href="{% url 'etherpadlite:padmapper' pad.group.name pad.name }}">{{pad.name}}</a></h5>
+      {% for match in pad.matches %}
+      <p>
+        {{ match }}
+      </p>
+      {% endfor %}
+    </li>
+  {% endfor %}
+  </ul>
+
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "padman/base.html" %} {% load i18n %}
+
+{% block pad_content %}
+  <h2>{% trans "Import Group Pads" %}</h2>
+  {% for group in groups %}
+  <b>{% trans "Group" %}</b>: {{group.groupID}} @ {{group.server}}
+  <h3>{% trans "Pads" %}</h3>
+  <ul>
+  {% for pad in group.unknown_pads %}
+    <li>{{ pad }}</li>
+  {% endfor %}
+  </ul>
+  <form method="POST">
+    {% csrf_token %}
+    <input name="server" type="hidden" value="{{group.server.id}}" />
+    <button type="submit">{% trans "Import" %}</button>
+  </form>
+  {% endfor %}
+{% endblock %}

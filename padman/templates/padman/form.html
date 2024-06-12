@@ -1,0 +1,17 @@
+{% extends "padman/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title|capfirst }}{% endblock %}
+
+{% block pad_content %}
+  {% if message %}
+  <b>{{message}}</b>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <table>
+      {{ form.as_table }}
+    </table>
+    <input class="submit" type="submit" value="{{ submit|capfirst }}" />
+  </form>
+{% endblock %}

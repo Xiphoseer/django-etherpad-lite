@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='etherpadlite',
-    version='0.1',
+    name='django-padman',
+    version='0.2',
     author='Sofian Benaissa',
     author_email='me@sfyn.net',
     url='https://github.com/sfyn/django-etherpad-lite',

@@ -1,0 +1,22 @@
+{% extends "padman/base.html" %}
+
+{% block pad_content %}
+  <form>
+    <input type="text" name="query" value="{{query}}">
+    <button type="submit">Submit</button>
+  </form>
+
+  <ul>
+  {% for pad in pads %}
+
+  {% with pad=pad.pad matches=pad.matches %}
+    <li>
+      <a href="{% url 'etherpadlite:padmapper' pad.group.group_mapper pad.name %}">{{pad.name}}</a>      
+      {% for match in matches %}
+        <p>{{ match }}</p>
+      {% endfor %}
+    </li>
+  {% endwith %}
+  {% endfor %}
+  </ul>
+{% endblock %}
